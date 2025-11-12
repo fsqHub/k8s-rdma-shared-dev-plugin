@@ -108,7 +108,7 @@ func (rf *rdmaDeviceSpec) Get(pciAddress string) []*pluginapi.DeviceSpec {
 	// 用于存储RDMA设备规范
 	deviceSpec := make([]*pluginapi.DeviceSpec, 0)
 
-	// 根据PCI地址获取对应的RDMA设备路径列表
+	// 根据PCI地址获取对应的RDMA设备列表
 	rdmaDevices := utils.GetRdmaDevices(pciAddress)
 	// 构建设备规范对象：
 	for _, device := range rdmaDevices {
@@ -137,7 +137,7 @@ func GetRdmaDevices(pciAddress string) []string {
 	rdmaDevices := make([]string, 0, len(rdmaResources))
 	for _, resource := range rdmaResources {
 		// 对每个RDMA资源（如 mlx5_0），调用 rdmamap.GetRdmaCharDevices 函数
-		// 获取该资源对应的RDMA字符设备路径列表
+		// 获取该资源对应的RDMA字符设备列表
 		rdmaResourceDevices := rdmamap.GetRdmaCharDevices(resource)
 		rdmaDevices = append(rdmaDevices, rdmaResourceDevices...)
 	}
@@ -146,18 +146,6 @@ func GetRdmaDevices(pciAddress string) []string {
 }
 ```
 
-### 系统级工作原理
-这个函数实际上是通过查询Linux系统的以下位置来获取RDMA设备信息：
-
-1. PCI设备到RDMA资源的映射：
-
-- 查询 /sys/bus/pci/devices/{pciAddress}/infiniband/ 目录
-- 获取该PCI设备对应的InfiniBand设备名称
-2. RDMA字符设备发现：
-
-- 查询 `/sys/class/infiniband/{resource}/device/infiniband_verbs/` 目录
-- 获取uverbs字符设备路径
-- 查询 `/dev/infiniband/` 目录获取其他RDMA字符设备
 
 ### 调用关系图
 ```
@@ -171,6 +159,21 @@ GetRdmaDevices(pciAddress)
         ├── 查询 /dev/infiniband/ 目录
         └── 返回字符设备路径列表
 ```
+
+### 系统级工作原理
+这个函数实际上是通过查询Linux系统的以下位置来获取RDMA设备信息：
+
+1. PCI设备到RDMA资源的映射：GetRdmaDevicesForPcidev()
+- 查询 /sys/bus/pci/devices/{pciAddress}/infiniband/ 目录
+- 获取该PCI设备对应的InfiniBand设备名称
+2. RDMA字符设备发现：GetRdmaCharDevices()
+- 查询 `/sys/class/infiniband_*`等目录，获取uverbs字符设备路径
+- 关心的设备："rdma_cm", "umad", "uverbs"
+  - ucm设备：/sys/class/infiniband_cm
+  - issm、umad设备：/sys/class/infiniband_mad
+  - uverb设备：/sys/class/infiniband_verbs
+  - rdmaCm设备：/dev/infiniband/rdma_cm
+- ~~查询 `/sys/class/infiniband/{resource}/device/infiniband_verbs/` 目录~~ 
 
 ### GetRdmaDevicesForPcidev(pciAddress string) []string
 ```go
@@ -224,10 +227,11 @@ func GetRdmaCharDevices(rdmaDeviceName string) []string {
 }
 ```
 #### 调用图
+
 ```
 GetRdmaCharDevices(rdmaDeviceName)
 ├── getUcmDevice(rdmaDeviceName)
-│   └── getCharDevice(rdmaDeviceName, ""/sys/class/infiniband_cm"", "ucm")
+│   └── getCharDevice(rdmaDeviceName, "/sys/class/infiniband_cm", "ucm")
 │       ├── 查询 /dev/infiniband/ucm 设备文件
 │       └── 返回设备路径或错误
 ├── getIssmDevice(rdmaDeviceName)  
