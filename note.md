@@ -155,7 +155,7 @@ GetRdmaDevices(pciAddress)
 │   └── 返回RDMA资源标识符列表
 └── 遍历每个资源:
     └── rdmamap.GetRdmaCharDevices(resource)
-        ├── 查询 /sys/class/infiniband/{resource}/device/infiniband_verbs/
+        ├── 查询 /sys/class/infiniband_* 目录
         ├── 查询 /dev/infiniband/ 目录
         └── 返回字符设备路径列表
 ```
