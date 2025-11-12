@@ -57,9 +57,18 @@ func GetPciAddress(ifName string) (string, error) {
 
 // GetRdmaDevices return rdma devices for given device pci address
 func GetRdmaDevices(pciAddress string) []string {
+	// 调用第三方库 rdmamap 的 GetRdmaDevicesForPcidev 函数
+	// 根据PCI地址（如 0000:01:00.0）获取该PCI设备对应的RDMA资源列表
+	// 返回的是RDMA资源标识符（如 mlx5_0、mlx5_1 等）
 	rdmaResources := rdmamap.GetRdmaDevicesForPcidev(pciAddress)
+
+	// 初始化设备列表：
+	// 创建一个空的字符串切片，容量预设为RDMA资源的数量
+	// 使用预设容量可以提高性能，避免多次内存分配
 	rdmaDevices := make([]string, 0, len(rdmaResources))
 	for _, resource := range rdmaResources {
+		// 对每个RDMA资源（如 mlx5_0），调用 rdmamap.GetRdmaCharDevices 函数
+		// 获取该资源对应的RDMA字符设备路径列表
 		rdmaResourceDevices := rdmamap.GetRdmaCharDevices(resource)
 		rdmaDevices = append(rdmaDevices, rdmaResourceDevices...)
 	}

@@ -39,9 +39,12 @@ func NewRdmaDeviceSpec(rdmaDevs []string) types.RdmaDeviceSpec {
 }
 
 func (rf *rdmaDeviceSpec) Get(pciAddress string) []*pluginapi.DeviceSpec {
+	// 用于存储RDMA设备规范
 	deviceSpec := make([]*pluginapi.DeviceSpec, 0)
 
+	// 根据PCI地址获取对应的RDMA设备路径列表
 	rdmaDevices := utils.GetRdmaDevices(pciAddress)
+	// 构建设备规范对象：
 	for _, device := range rdmaDevices {
 		deviceSpec = append(deviceSpec, &pluginapi.DeviceSpec{
 			HostPath:      device,
