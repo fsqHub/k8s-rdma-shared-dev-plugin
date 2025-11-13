@@ -172,7 +172,7 @@ GetRdmaDevices(pciAddress)
   - ucm设备：/sys/class/infiniband_cm
   - issm、umad设备：/sys/class/infiniband_mad
   - uverb设备：/sys/class/infiniband_verbs
-  - rdmaCm设备：/dev/infiniband/rdma_cm
+  - rdma_cm设备：/dev/infiniband/rdma_cm
 - ~~查询 `/sys/class/infiniband/{resource}/device/infiniband_verbs/` 目录~~ 
 
 ### GetRdmaDevicesForPcidev(pciAddress string) []string
@@ -309,6 +309,42 @@ func getCharDevice(rdmaDeviceName, classDir, charDevPrefix string) (string, erro
 - 检查文件/目录名包含 "uverbs"
 - 检查文件/目录是否与 "mlx5_0" 设备关联
 4. 返回结果：找到匹配的设备，如 /dev/infiniband/uverbs0
+
+### isDirForRdmaDevice()
+isDirForRdmaDevice 函数检查指定的目录是否与给定的RDMA设备名称关联。它通过读取目录中的 ibdev 文件内容，并与目标RDMA设备名称进行比较来确定关联性。
+```go
+func isDirForRdmaDevice(rdmaDeviceName, dirName string) bool {
+	fileName := filepath.Join(dirName, "ibdev")
+
+	// 打开目录下的ibdev文件
+    fd, err := os.OpenFile(fileName, os.O_RDONLY, 0444)
+	if err != nil {
+		return false
+	}
+	defer fd.Close()
+
+	// 使用 fd.Seek(0, io.SeekStart) 将文件指针重置到文件开头
+    if _, err = fd.Seek(0, io.SeekStart); err != nil {
+		return false
+	}
+
+	// 使用 ioutil.ReadAll 读取文件的全部内容
+    data, err := ioutil.ReadAll(fd)
+	if err != nil {
+		return false
+	}
+    // 对比读取到的内容与目标RDMA设备名称是否匹配
+	return (strings.Compare(strings.Trim(string(data), "\n"), rdmaDeviceName) == 0)
+}
+```
+#### 实际工作流程示例
+假设调用：isDirForRdmaDevice("mlx5_0", "/sys/class/infiniband_verbs/uverbs0")
+
+1. 构建路径：/sys/class/infiniband_verbs/uverbs0/ibdev
+2. 打开文件：读取 ibdev 文件内容
+3. 处理内容：假设文件内容为 "mlx5_0\n"，去除换行符后得到 "mlx5_0"
+4. 比较结果："mlx5_0" == "mlx5_0"，返回 true
+
 
 
 # VerifyRdmaSpec()
